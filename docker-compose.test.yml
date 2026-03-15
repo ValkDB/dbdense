@@ -1,0 +1,33 @@
+name: dbdense-test
+# NOTE: testdata/init/ files seed databases on local Docker startup.
+# In CI (GitHub Actions), service containers don't mount volumes,
+# so all seeding is handled by internal/extract/testhelper_test.go.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dbdense
+      POSTGRES_PASSWORD: dbdense
+      POSTGRES_DB: dbdense_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./testdata/init/postgres.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbdense -d dbdense_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./testdata/init/mongo.js:/docker-entrypoint-initdb.d/01-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 2s
+      timeout: 5s
+      retries: 10

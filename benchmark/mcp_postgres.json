@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgres://dbdense:dbdense@localhost:5432/dbdense_test?sslmode=disable"]
+    }
+  }
+}

@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify module checksums
+        run: go mod verify
+
+      - name: Verify benchmark module checksums
+        run: cd benchmark && go mod verify
+
+      - name: Build
+        run: CGO_ENABLED=0 go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Benchmark module vet
+        run: cd benchmark && go vet ./...
+
+      - name: Race tests
+        run: go test -race -count=1 ./...
+
+      - name: Benchmark module tests
+        run: cd benchmark && go test -v -race -count=1 ./...
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify module checksums
+        run: go mod verify
+
+      - name: Start integration databases
+        run: docker compose -f docker-compose.test.yml up -d --wait
+
+      - name: Integration tests
+        env:
+          DBDENSE_PG_DSN: "postgres://dbdense:dbdense@localhost:5432/dbdense_test?sslmode=disable"
+          DBDENSE_MONGO_URI: "mongodb://localhost:27017"
+        run: go test -tags integration -v -timeout 5m ./...
+
+      - name: Stop integration databases
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.8.0
+          only-new-issues: true

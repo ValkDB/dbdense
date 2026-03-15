@@ -1,0 +1,7 @@
+temp/
+benchmark/results/
+benchmark/runs/
+benchmark/internal-notes/
+private/
+/dbdense
+*.exe

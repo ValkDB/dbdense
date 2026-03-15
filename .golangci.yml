@@ -1,0 +1,40 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - gocritic
+    - prealloc
+    - revive
+    - errorlint
+    - bodyclose
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - nolintlint
+    - misspell
+  settings:
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+            - checkPrivateReceivers
+        - name: package-comments
+        - name: comment-spacings
+  exclusions:
+    generated: strict
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: strict

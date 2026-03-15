@@ -1,0 +1,453 @@
+{
+  "version": "ctxexport.v0",
+  "entities": [
+    {
+      "name": "audit_events",
+      "type": "table",
+      "description": "Operational audit trail (noise/trap table).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "event_type",
+          "type": "text"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid"
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb"
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_audit_events_actor_id",
+          "columns": [
+            "actor_id"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_audit_events_event_type",
+          "columns": [
+            "event_type"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "internal_metrics",
+      "type": "table",
+      "description": "Internal observability metrics (noise/trap table).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "is_pk": true
+        },
+        {
+          "name": "metric_name",
+          "type": "text"
+        },
+        {
+          "name": "metric_value",
+          "type": "numeric(12,2)"
+        },
+        {
+          "name": "recorded_at",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "tags",
+          "type": "jsonb"
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_internal_metrics_metric_name",
+          "columns": [
+            "metric_name"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_internal_metrics_recorded_at",
+          "columns": [
+            "recorded_at"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "order_items",
+      "type": "table",
+      "description": "Line items in an order.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "order_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "quantity",
+          "type": "integer"
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_order_items_order_id",
+          "columns": [
+            "order_id"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "orders",
+      "type": "table",
+      "description": "Customer orders.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "user_id",
+          "type": "uuid"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "description": "Order lifecycle status."
+        },
+        {
+          "name": "total",
+          "type": "numeric(10,2)"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "description": "JSONB. Structure: {status: string (pending|confirmed|shipped|delivered|cancelled), items: [{sku: string, qty: int, price: numeric}], shipping: {carrier: string, tracking_id: string, shipped_at: timestamptz}}. Query with payload-\u003e\u003e'status', payload-\u003e'items', payload-\u003e'shipping'-\u003e\u003e'carrier'."
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_orders_payload",
+          "columns": [
+            "payload"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_orders_status",
+          "columns": [
+            "status"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_orders_status_total",
+          "columns": [
+            "status",
+            "total"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_orders_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "payments",
+      "type": "table",
+      "description": "Payment attempts and settlement state.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "order_id",
+          "type": "uuid"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "provider",
+          "type": "text"
+        },
+        {
+          "name": "amount",
+          "type": "numeric(10,2)"
+        },
+        {
+          "name": "paid_at",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "retry_count",
+          "type": "integer"
+        },
+        {
+          "name": "gateway_payload",
+          "type": "jsonb",
+          "description": "Provider-specific payment metadata."
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_payments_order_id",
+          "columns": [
+            "order_id"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_payments_provider_status",
+          "columns": [
+            "provider",
+            "status"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_payments_status",
+          "columns": [
+            "status"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "products",
+      "type": "table",
+      "description": "Product catalog.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "price",
+          "type": "numeric(10,2)"
+        },
+        {
+          "name": "attributes",
+          "type": "jsonb"
+        }
+      ]
+    },
+    {
+      "name": "shipments",
+      "type": "table",
+      "description": "Shipment and delivery tracking records.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "order_id",
+          "type": "uuid"
+        },
+        {
+          "name": "carrier",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "type": "text"
+        },
+        {
+          "name": "region",
+          "type": "text"
+        },
+        {
+          "name": "shipped_at",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "delivered_at",
+          "type": "timestamp with time zone"
+        },
+        {
+          "name": "tracking_events",
+          "type": "jsonb",
+          "description": "Event stream for shipment lifecycle."
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_shipments_carrier_region",
+          "columns": [
+            "carrier",
+            "region"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_shipments_order_id",
+          "columns": [
+            "order_id"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_shipments_status",
+          "columns": [
+            "status"
+          ],
+          "is_unique": false
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "type": "table",
+      "description": "Core identity table.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "description": "Login email address."
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "description": "Soft delete timestamp."
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "users_email_key",
+          "columns": [
+            "email"
+          ],
+          "is_unique": true
+        }
+      ]
+    },
+    {
+      "name": "auth.sessions",
+      "type": "table",
+      "description": "Active user sessions.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "is_pk": true
+        },
+        {
+          "name": "user_id",
+          "type": "uuid"
+        },
+        {
+          "name": "token",
+          "type": "text"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone"
+        }
+      ],
+      "access_paths": [
+        {
+          "name": "idx_sessions_token",
+          "columns": [
+            "token"
+          ],
+          "is_unique": false
+        },
+        {
+          "name": "idx_sessions_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "is_unique": false
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from_entity": "order_items",
+      "from_field": "order_id",
+      "to_entity": "orders",
+      "to_field": "id",
+      "type": "foreign_key"
+    },
+    {
+      "from_entity": "order_items",
+      "from_field": "product_id",
+      "to_entity": "products",
+      "to_field": "id",
+      "type": "foreign_key"
+    },
+    {
+      "from_entity": "orders",
+      "from_field": "user_id",
+      "to_entity": "users",
+      "to_field": "id",
+      "type": "foreign_key"
+    },
+    {
+      "from_entity": "payments",
+      "from_field": "order_id",
+      "to_entity": "orders",
+      "to_field": "id",
+      "type": "foreign_key"
+    },
+    {
+      "from_entity": "shipments",
+      "from_field": "order_id",
+      "to_entity": "orders",
+      "to_field": "id",
+      "type": "foreign_key"
+    }
+  ]
+}

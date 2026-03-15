@@ -1,0 +1,12 @@
+id: q2_complex
+label: complex_multi_join
+category: regular
+prompt: >
+  Find me the big spenders — customers who paid more than $500 total between
+  October 3rd 2024 and end of year — whose orders were marked shipped before
+  Christmas but either never arrived or took more than 7 days after shipping
+  to deliver. Don't include deleted users. How many user-order pairs is that?
+verification:
+  response:
+    numeric_equals:
+      user_order_pairs: 49

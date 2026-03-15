@@ -1,0 +1,9 @@
+id: q5_revenue
+label: simple_revenue_sum
+category: regular
+prompt: >
+  What's the total revenue from paid payments?
+verification:
+  response:
+    numeric_equals:
+      total_revenue: 4482515

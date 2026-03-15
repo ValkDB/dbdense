@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "WebFetch(domain:golangci-lint.run)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)",
+      "WebSearch",
+      "Bash(echo Exit: $?:*)",
+      "Bash(find:*)",
+      "Bash(tail:*)",
+      "Bash(python3:*)",
+      "Bash(./benchmark/run_standard.sh:*)",
+      "mcp__postgres__query",
+      "Bash(go run:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(cat:*)",
+      "Bash(go env:*)",
+      "Bash(git stash:*)",
+      "Bash(go clean:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(which asciinema:*)",
+      "Bash(docker compose:*)",
+      "Read(//tmp/**)",
+      "Bash(/tmp/dbdense export:*)",
+      "Bash(/tmp/dbdense compile:*)",
+      "Bash(cd:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "postgres"
+  ]
+}

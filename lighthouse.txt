@@ -1,0 +1,11 @@
+# lighthouse.v0
+# Table map. T=table, J=joined tables. Use slice tool for column details.
+T:audit_events
+T:internal_metrics
+T:order_items|J:orders,products
+T:orders|J:order_items,payments,shipments,users
+T:payments|J:orders
+T:products|J:order_items
+T:shipments|J:orders
+T:users|J:orders
+T:auth.sessions

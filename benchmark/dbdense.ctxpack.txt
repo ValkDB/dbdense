@@ -1,0 +1,16 @@
+# ctxpack.v0
+# Database schema. E=entity, pk=primary key, f=fields, d=description, sf=subfields, J=join.
+E:audit_events|d=Operational audit trail.|pk=id|f=event_type,actor_id,occurred_at,payload
+E:internal_metrics|d=Internal observability metrics.|pk=id|f=metric_name,metric_value,recorded_at,tags
+E:order_items|d=Line items in an order.|pk=id|f=order_id,product_id,quantity
+E:orders|d=Customer orders.|pk=id|f=user_id,status(d:Order lifecycle status.),total,payload(d:JSONB. Structure: {status: string pendingconfirmedshippeddeliveredcancelled  items: [{sku: string  qty: int  price: numeric}]  shipping: {carrier: string  tracking_id: string  shipped_at: timestamptz}}. Query with payload-'status'  payload-'items'  payload-'shipping'-'carrier'.)
+E:payments|d=Payment attempts and settlement state.|pk=id|f=order_id,status,provider,amount,paid_at,retry_count,gateway_payload(d:Provider-specific payment metadata.)
+E:products|d=Product catalog.|pk=id|f=name,price,attributes
+E:shipments|d=Shipment and delivery tracking records.|pk=id|f=order_id,carrier,status,region,shipped_at,delivered_at,tracking_events(d:Event stream for shipment lifecycle.)
+E:users|d=Core identity table.|pk=id|f=email(d:Login email address.),name,deleted_at(d:Soft delete timestamp.)
+E:auth.sessions|d=Active user sessions.|pk=id|f=user_id,token,expires_at
+J:order_items.order_id>orders.id
+J:order_items.product_id>products.id
+J:orders.user_id>users.id
+J:payments.order_id>orders.id
+J:shipments.order_id>orders.id

@@ -1,0 +1,9 @@
+id: q1_simple
+label: simple_single_table
+category: regular
+prompt: >
+  How many paid orders do we have?
+verification:
+  response:
+    numeric_equals:
+      paid_orders: 9000

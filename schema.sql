@@ -1,0 +1,99 @@
+-- dbdense schema context
+CREATE TABLE audit_events ( -- Operational audit trail (noise/trap table).
+  id uuid PRIMARY KEY,
+  event_type text,
+  actor_id uuid,
+  occurred_at timestamp with time zone,
+  payload jsonb
+);
+CREATE INDEX idx_audit_events_actor_id ON audit_events (actor_id);
+CREATE INDEX idx_audit_events_event_type ON audit_events (event_type);
+
+CREATE TABLE internal_metrics ( -- Internal observability metrics (noise/trap table).
+  id bigint PRIMARY KEY,
+  metric_name text,
+  metric_value numeric(12,2),
+  recorded_at timestamp with time zone,
+  tags jsonb
+);
+CREATE INDEX idx_internal_metrics_metric_name ON internal_metrics (metric_name);
+CREATE INDEX idx_internal_metrics_recorded_at ON internal_metrics (recorded_at);
+
+CREATE TABLE order_items ( -- Line items in an order.
+  id uuid PRIMARY KEY,
+  order_id uuid,
+  product_id uuid,
+  quantity integer
+);
+CREATE INDEX idx_order_items_order_id ON order_items (order_id);
+
+CREATE TABLE orders ( -- Customer orders.
+  id uuid PRIMARY KEY,
+  user_id uuid,
+  "status" text, -- Order lifecycle status.
+  total numeric(10,2),
+  payload jsonb -- JSONB. Structure: {status: string (pending|confirmed|shipped|delivered|cancelled), items: [{sku: string, qty: int, price: numeric}], shipping: {carrier: string, tracking_id: string, shipped_at: timestamptz}}. Query with payload->>'status', payload->'items', payload->'shipping'->>'carrier'.
+);
+CREATE INDEX idx_orders_payload ON orders (payload);
+CREATE INDEX idx_orders_status ON orders ("status");
+CREATE INDEX idx_orders_status_total ON orders ("status", total);
+CREATE INDEX idx_orders_user_id ON orders (user_id);
+
+CREATE TABLE payments ( -- Payment attempts and settlement state.
+  id uuid PRIMARY KEY,
+  order_id uuid,
+  "status" text,
+  provider text,
+  amount numeric(10,2),
+  paid_at timestamp with time zone,
+  retry_count integer,
+  gateway_payload jsonb -- Provider-specific payment metadata.
+);
+CREATE INDEX idx_payments_order_id ON payments (order_id);
+CREATE INDEX idx_payments_provider_status ON payments (provider, "status");
+CREATE INDEX idx_payments_status ON payments ("status");
+
+CREATE TABLE products ( -- Product catalog.
+  id uuid PRIMARY KEY,
+  "name" text,
+  price numeric(10,2),
+  attributes jsonb
+);
+
+CREATE TABLE shipments ( -- Shipment and delivery tracking records.
+  id uuid PRIMARY KEY,
+  order_id uuid,
+  carrier text,
+  "status" text,
+  region text,
+  shipped_at timestamp with time zone,
+  delivered_at timestamp with time zone,
+  tracking_events jsonb -- Event stream for shipment lifecycle.
+);
+CREATE INDEX idx_shipments_carrier_region ON shipments (carrier, region);
+CREATE INDEX idx_shipments_order_id ON shipments (order_id);
+CREATE INDEX idx_shipments_status ON shipments ("status");
+
+CREATE TABLE users ( -- Core identity table.
+  id uuid PRIMARY KEY,
+  email text, -- Login email address.
+  "name" text,
+  deleted_at timestamp with time zone -- Soft delete timestamp.
+);
+ALTER TABLE users ADD UNIQUE (email);
+
+CREATE TABLE "auth.sessions" ( -- Active user sessions.
+  id uuid PRIMARY KEY,
+  user_id uuid,
+  token text,
+  expires_at timestamp with time zone
+);
+CREATE INDEX idx_sessions_token ON "auth.sessions" (token);
+CREATE INDEX idx_sessions_user_id ON "auth.sessions" (user_id);
+
+-- Foreign keys
+ALTER TABLE order_items ADD FOREIGN KEY (order_id) REFERENCES orders (id);
+ALTER TABLE order_items ADD FOREIGN KEY (product_id) REFERENCES products (id);
+ALTER TABLE orders ADD FOREIGN KEY (user_id) REFERENCES users (id);
+ALTER TABLE payments ADD FOREIGN KEY (order_id) REFERENCES orders (id);
+ALTER TABLE shipments ADD FOREIGN KEY (order_id) REFERENCES orders (id);
