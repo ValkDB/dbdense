@@ -6,10 +6,14 @@ Shipped today:
 
 - PostgreSQL extraction
 - MongoDB extraction with sampled field inference
+- MongoDB JSON Schema validator extraction (ground truth when present)
+- MongoDB statistical type inference with high-confidence objectId warnings
+- MongoDB embedded document awareness in lighthouse (`E:` segment)
+- MongoDB index extraction (compound, unique, TTL)
 - `ctxexport.json` as the offline schema snapshot
 - `dbdense.yaml` sidecar merge
 - DDL compiler
-- lighthouse compiler
+- lighthouse compiler with embedded doc visibility
 - MCP stdio server with `dbdense://lighthouse`, `slice`, and `reset`
 - session dedup for repeated slice calls
 - `init-claude`
@@ -19,10 +23,13 @@ Shipped today:
 
 ## Near-term work
 
-- run and publish more end-to-end benchmark results
+- run benchmark results on larger schemas and additional models
 - collect results beyond the current synthetic compile fixtures
 - improve docs and examples around sidecar usage and MongoDB behavior
-- add more extraction fidelity where it clearly helps the agent
+
+## MongoDB depth improvements
+
+- **Mongoose/ODM schema import**: optional `--schema-source mongoose` flag that parses `.js`/`.ts` schema definitions from code rather than connecting to the DB. Near-Postgres-level accuracy for Node.js shops.
 
 ## Possible later work
 

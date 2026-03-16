@@ -6,6 +6,7 @@ prompt: >
   October 3rd 2024 and end of year — whose orders were marked shipped before
   Christmas but either never arrived or took more than 7 days after shipping
   to deliver. Don't include deleted users. How many user-order pairs is that?
+  Return JSON with key user_order_pairs.
 verification:
   response:
     numeric_equals:

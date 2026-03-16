@@ -375,7 +375,7 @@ func renderCreateTable(b *strings.Builder, ent schema.Entity) {
 			b.WriteString(" PRIMARY KEY")
 		}
 
-		if f.NotNull && !(f.IsPK && isSinglePK) {
+		if f.NotNull && (!f.IsPK || !isSinglePK) {
 			// PRIMARY KEY implies NOT NULL, so skip the redundant annotation.
 			b.WriteString(" NOT NULL")
 		}
@@ -388,8 +388,19 @@ func renderCreateTable(b *strings.Builder, ent schema.Entity) {
 			b.WriteByte(',')
 		}
 
-		if f.Description != "" {
-			fmt.Fprintf(b, " -- %s", f.Description)
+		if f.Description != "" || len(f.Values) > 0 {
+			b.WriteString(" --")
+			if f.Description != "" {
+				fmt.Fprintf(b, " %s", f.Description)
+			}
+			if len(f.Values) > 0 {
+				if f.Description != "" {
+					if !strings.HasSuffix(strings.TrimSpace(f.Description), ".") {
+						b.WriteByte('.')
+					}
+				}
+				fmt.Fprintf(b, " Values: %s", strings.Join(f.Values, ", "))
+			}
 		}
 
 		b.WriteByte('\n')
@@ -454,16 +465,24 @@ func WriteLighthouse(w io.Writer, entities []schema.Entity, edges []schema.Edge)
 //
 //	# lighthouse.v0
 //	T:users|J:orders,sessions,payments
+//	T:orders|E:payload,shipping_address|J:users,products
 //	T:audit_log
 func renderLighthouse(entities []schema.Entity, g *Graph) string {
 	var b strings.Builder
-	b.Grow(len("# lighthouse.v0\n") + len("# Table map. T=table, J=joined tables. Use slice tool for column details.\n") + len(entities)*40)
+	b.Grow(len("# lighthouse.v0\n") + len("# Table map. T=table, J=joined tables, E=embedded docs. Use slice tool for column details.\n") + len(entities)*50)
 	b.WriteString("# lighthouse.v0\n")
-	b.WriteString("# Table map. T=table, J=joined tables. Use slice tool for column details.\n")
+	b.WriteString("# Table map. T=table, J=joined tables, E=embedded docs. Use slice tool for column details.\n")
 
 	for _, ent := range entities {
 		b.WriteString("T:")
 		b.WriteString(sanitizeLighthouse(ent.Name))
+
+		// Emit embedded document fields (fields with subfields).
+		embedded := embeddedFieldNames(ent)
+		if len(embedded) > 0 {
+			b.WriteString("|E:")
+			b.WriteString(strings.Join(embedded, ","))
+		}
 
 		neighbors := g.Neighbors(ent.Name)
 		if len(neighbors) > 0 {
@@ -479,4 +498,17 @@ func renderLighthouse(entities []schema.Entity, g *Graph) string {
 	}
 
 	return b.String()
+}
+
+// embeddedFieldNames returns the names of fields that have subfields
+// (embedded documents), sanitized for lighthouse output. Order matches
+// the entity's field list.
+func embeddedFieldNames(ent schema.Entity) []string {
+	var names []string
+	for _, f := range ent.Fields {
+		if len(f.Subfields) > 0 {
+			names = append(names, sanitizeLighthouse(f.Name))
+		}
+	}
+	return names
 }

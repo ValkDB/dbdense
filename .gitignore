@@ -1,7 +1,10 @@
 temp/
-benchmark/results/
+benchmark
 benchmark/runs/
 benchmark/internal-notes/
 private/
 /dbdense
 *.exe
+.claude/
+.idea/
+vendor/

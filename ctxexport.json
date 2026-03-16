@@ -9,23 +9,30 @@
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "event_type",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "actor_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "occurred_at",
-          "type": "timestamp with time zone"
+          "type": "timestamp with time zone",
+          "not_null": true
         },
         {
           "name": "payload",
-          "type": "jsonb"
+          "type": "jsonb",
+          "not_null": true,
+          "default": "'{}'::jsonb"
         }
       ],
       "access_paths": [
@@ -53,23 +60,30 @@
         {
           "name": "id",
           "type": "bigint",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "nextval('internal_metrics_id_seq'::regclass)"
         },
         {
           "name": "metric_name",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "metric_value",
-          "type": "numeric(12,2)"
+          "type": "numeric(12,2)",
+          "not_null": true
         },
         {
           "name": "recorded_at",
-          "type": "timestamp with time zone"
+          "type": "timestamp with time zone",
+          "not_null": true
         },
         {
           "name": "tags",
-          "type": "jsonb"
+          "type": "jsonb",
+          "not_null": true,
+          "default": "'{}'::jsonb"
         }
       ],
       "access_paths": [
@@ -97,19 +111,25 @@
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "order_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "product_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "quantity",
-          "type": "integer"
+          "type": "integer",
+          "not_null": true,
+          "default": "1"
         }
       ],
       "access_paths": [
@@ -125,30 +145,39 @@
     {
       "name": "orders",
       "type": "table",
-      "description": "Customer orders.",
+      "description": "Customer orders. For lifecycle filtering, use orders.payload.status as the source of truth.\n",
       "fields": [
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "user_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "status",
           "type": "text",
+          "not_null": true,
+          "default": "'pending'::text",
           "description": "Order lifecycle status."
         },
         {
           "name": "total",
-          "type": "numeric(10,2)"
+          "type": "numeric(10,2)",
+          "not_null": true,
+          "default": "0"
         },
         {
           "name": "payload",
           "type": "jsonb",
-          "description": "JSONB. Structure: {status: string (pending|confirmed|shipped|delivered|cancelled), items: [{sku: string, qty: int, price: numeric}], shipping: {carrier: string, tracking_id: string, shipped_at: timestamptz}}. Query with payload-\u003e\u003e'status', payload-\u003e'items', payload-\u003e'shipping'-\u003e\u003e'carrier'."
+          "not_null": true,
+          "default": "'{}'::jsonb",
+          "description": "JSONB schema_hint: { status: pending|confirmed|shipped|delivered|cancelled, channel: web|mobile|partner|api, priority: normal|high|urgent, items: [{sku:string, qty:int, price:numeric}], shipping: {carrier:string, tracking_id:string, shipped_at:timestamptz} }. Query paths: payload-\u003e\u003e'status', payload-\u003e'items', payload-\u003e'shipping'-\u003e\u003e'carrier'.\n"
         }
       ],
       "access_paths": [
@@ -191,23 +220,30 @@
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "order_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "status",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "provider",
-          "type": "text"
+          "type": "text",
+          "not_null": true,
+          "description": "Provider used for breakdown reports (stripe|adyen|paypal|braintree).\n"
         },
         {
           "name": "amount",
-          "type": "numeric(10,2)"
+          "type": "numeric(10,2)",
+          "not_null": true
         },
         {
           "name": "paid_at",
@@ -215,11 +251,16 @@
         },
         {
           "name": "retry_count",
-          "type": "integer"
+          "type": "integer",
+          "not_null": true,
+          "default": "0",
+          "description": "Failed payment retry signal: retry_count \u003e 0 with non-settled status (pending|authorized|failed).\n"
         },
         {
           "name": "gateway_payload",
           "type": "jsonb",
+          "not_null": true,
+          "default": "'{}'::jsonb",
           "description": "Provider-specific payment metadata."
         }
       ],
@@ -256,47 +297,60 @@
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "name",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "price",
-          "type": "numeric(10,2)"
+          "type": "numeric(10,2)",
+          "not_null": true
         },
         {
           "name": "attributes",
-          "type": "jsonb"
+          "type": "jsonb",
+          "not_null": true,
+          "default": "'{}'::jsonb"
         }
       ]
     },
     {
       "name": "shipments",
       "type": "table",
-      "description": "Shipment and delivery tracking records.",
+      "description": "Shipment and delivery tracking records. SLA definition: shipment is late when shipped_at is older than 7 days and delivered_at is NULL, or delivered_at \u003e shipped_at + interval '7 days'.\n",
       "fields": [
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "order_id",
-          "type": "uuid"
+          "type": "uuid",
+          "not_null": true
         },
         {
           "name": "carrier",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "status",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "region",
-          "type": "text"
+          "type": "text",
+          "not_null": true,
+          "description": "Region bucket for reporting (na-east|na-west|eu-central|ap-south).\n"
         },
         {
           "name": "shipped_at",
@@ -309,6 +363,8 @@
         {
           "name": "tracking_events",
           "type": "jsonb",
+          "not_null": true,
+          "default": "'[]'::jsonb",
           "description": "Event stream for shipment lifecycle."
         }
       ],
@@ -340,21 +396,25 @@
     {
       "name": "users",
       "type": "table",
-      "description": "Core identity table.",
+      "description": "Core identity table. Benchmark/business hint: treat a \"premium user\" as a user with paid order spend \u003e= 500 USD in the trailing 90 days unless a stricter product rule is provided by the caller.\n",
       "fields": [
         {
           "name": "id",
           "type": "uuid",
-          "is_pk": true
+          "is_pk": true,
+          "not_null": true,
+          "default": "gen_random_uuid()"
         },
         {
           "name": "email",
           "type": "text",
-          "description": "Login email address."
+          "not_null": true,
+          "description": "Login email. Exclude internal/test accounts using patterns like *@internal.com, *@test.com, %+test@*, *@localhost.\n"
         },
         {
           "name": "name",
-          "type": "text"
+          "type": "text",
+          "not_null": true
         },
         {
           "name": "deleted_at",
@@ -369,46 +429,6 @@
             "email"
           ],
           "is_unique": true
-        }
-      ]
-    },
-    {
-      "name": "auth.sessions",
-      "type": "table",
-      "description": "Active user sessions.",
-      "fields": [
-        {
-          "name": "id",
-          "type": "uuid",
-          "is_pk": true
-        },
-        {
-          "name": "user_id",
-          "type": "uuid"
-        },
-        {
-          "name": "token",
-          "type": "text"
-        },
-        {
-          "name": "expires_at",
-          "type": "timestamp with time zone"
-        }
-      ],
-      "access_paths": [
-        {
-          "name": "idx_sessions_token",
-          "columns": [
-            "token"
-          ],
-          "is_unique": false
-        },
-        {
-          "name": "idx_sessions_user_id",
-          "columns": [
-            "user_id"
-          ],
-          "is_unique": false
         }
       ]
     }

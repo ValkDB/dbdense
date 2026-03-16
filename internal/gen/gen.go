@@ -14,8 +14,8 @@
 //   - Noise fields have random types that don't always match their names
 //   - Low edge density (~30% of noise tables have FKs; real schemas are denser)
 //
-// For publishable benchmark results, use a real schema or a hand-designed test
-// schema (see benchmark/TODO.md Phase 1).
+// For stronger benchmark evidence, use a real schema or a hand-designed test
+// schema.
 package gen
 
 import (

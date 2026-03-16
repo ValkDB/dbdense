@@ -35,16 +35,19 @@ Supported backends:
   - supports multi-schema exports
   - emits warnings for FK targets outside the exported schema set
 - MongoDB
+  - extracts JSON Schema validators (`$jsonSchema`) as ground truth when present; falls back to sampling
   - samples documents to infer fields and subfields
   - uses random `$sample`, not "first N documents"
   - warns when a collection has fewer documents than the configured sample size
   - inferred refs are conservative: only exact `*_id -> collection_name` matches produce edges
+  - tracks objectId type frequency per field; emits high-confidence warnings when a `*_id` field is >=90% objectId but has no matching collection
+  - extracts indexes (compound, unique) as access paths
 
 Optional enrichment:
 
 - `dbdense.yaml` sidecar
   - merged during `export`
-  - adds entity and field descriptions
+  - adds entity and field descriptions plus low-cardinality field values
   - emits warnings for names that do not match the exported snapshot
 
 Runtime characteristic:
@@ -85,21 +88,21 @@ Surface:
 - Resource: `dbdense://lighthouse`
 - Tool: `slice`
   - input: `tables: []string`
-  - output: DDL for only those tables
+  - output: compiled schema text for only those requested names
   - appends warnings for nonexistent tables
-  - appends notes when requested tables were already sent in the same session
+  - appends notes when requested names were already sent in the same session
 - Tool: `reset`
   - clears the session dedup cache
 
-In a preliminary agentic benchmark on a seeded 8-table Postgres database, this two-tier model improved correct answers from 4/7 (baseline, no schema context) to 6/7 (dbdense), while reducing average turns from 5.1 to 3.0. Schema context guided the model to the right tables and correct column interpretations. See the [README agentic benchmark section](../README.md#agentic-benchmark) for full numbers and caveats.
+In the current checked-in n=3 benchmark run on a seeded 8-table Postgres database, both arms achieved the same accuracy (13/15), but dbdense used 34% fewer total tokens and 46% fewer turns per question (4.1 -> 2.2). The savings were largest on complex multi-table joins where baseline spent extra turns on schema discovery. That run still misses the latency and stress gates in the benchmark report, so treat it as directional evidence rather than a settled benchmark claim. See the [README agentic benchmark section](../README.md#agentic-benchmark) for full numbers and caveats.
 
 ## Lighthouse, slice, and session dedup
 
 The runtime model is two-tier:
 
 - lighthouse is cached once when the server starts
-- slice calls compile table subsets on demand
-- the server tracks which table names have already been returned in the current session
+- slice calls compile entity subsets on demand
+- the server tracks which requested names have already been returned in the current session
 
 That dedup is in-memory and session-local. If a model asks for `users` twice, the second call does not resend the DDL unless `reset` is called.
 
@@ -146,4 +149,4 @@ Implement the `Renderer` interface in `internal/compile`:
         Render(entities []schema.Entity, edges []schema.Edge) string
     }
 
-Pass the renderer to the `Compiler` via the `Renderer` field. The default is `DDLRenderer` (standard SQL DDL).
+Pass the renderer to the `Compiler` via the `Renderer` field. The default is `DDLRenderer` (SQL-first schema text: `CREATE TABLE` for tables/materialized views, plus `-- VIEW:` comments for views).

@@ -8,14 +8,14 @@ dbdense uses two tiers of schema context.
 
 It contains:
 
-- table names
+- exported entity names
 - FK neighbors
 - no columns
 - no types
 
 Why it exists:
 
-- it makes the full table map available at low cost
+- it makes the full entity map available at low cost
 - it gives the model enough topology to choose what to inspect next
 
 Measured size from the compile tests:
@@ -28,7 +28,7 @@ The same tests show the usual caveat: long names degrade density. In the adversa
 
 ## Tier 2: slice
 
-The MCP `slice` tool returns DDL for only the requested tables:
+The MCP `slice` tool returns compiled schema text for only the requested entities. The request field is still named `tables`:
 
 ```json
 {"tables":["users","orders"]}
@@ -37,7 +37,8 @@ The MCP `slice` tool returns DDL for only the requested tables:
 Response shape:
 
 - starts with `-- dbdense schema context`
-- contains `CREATE TABLE` statements for the matched tables
+- contains `CREATE TABLE` statements for matched tables and materialized views
+- renders matched views as `-- VIEW:` comments
 - includes FK statements only when both endpoints are in the requested subset
 
 This is where most of the context savings come from. In the benchmark fixtures:
@@ -48,12 +49,12 @@ This is where most of the context savings come from. In the benchmark fixtures:
 
 ## Session dedup
 
-The server keeps an in-memory set of table names already sent in the current session.
+The server keeps an in-memory set of requested names already sent in the current session.
 
 Effects:
 
-- if the model asks for `users` twice, the second response does not resend the same DDL
-- if some requested tables are new and some were already sent, only the new tables are rendered
+- if the model asks for `users` twice, the second response does not resend the same schema text
+- if some requested names are new and some were already sent, only the new entities are rendered
 - if everything was already sent, the tool returns a short message instead of another DDL block
 
 This reduces repeated prompt growth in multi-turn conversations.
@@ -80,9 +81,9 @@ Use it when:
 
 It does not reload the export or re-extract the schema. It only resets the "already sent" bookkeeping.
 
-## Accuracy benefit of pre-loaded context
+## Efficiency benefit of pre-loaded context
 
-In the preliminary agentic benchmark, having precompiled schema context injected up front reduced errors that stem from schema discovery. In that run the `dbdense` arm received compiled schema DDL via `-context-file-dbdense`, not live `slice` calls. Without context, the baseline model guessed at column semantics — for example, counting wrong order statuses and miscalculating revenue. With schema context available, the model produced correct queries for the same questions. See the [README agentic benchmark section](../README.md#agentic-benchmark) for the full results.
+In the current checked-in n=3 benchmark run, having precompiled schema context injected up front eliminated schema discovery round-trips. The `dbdense` arm received compiled schema DDL via `-context-file-dbdense`, not live `slice` calls. Both arms achieved the same accuracy (13/15), but dbdense used 34% fewer total tokens and 46% fewer turns per question. The savings were largest on complex multi-table joins where baseline spent extra turns querying `information_schema`. That run still misses the latency and stress gates in the benchmark report, so treat it as directional evidence rather than a settled benchmark claim. See the [README agentic benchmark section](../README.md#agentic-benchmark) for the full results.
 
 ## Limitations
 

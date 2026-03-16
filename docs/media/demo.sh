@@ -6,8 +6,8 @@ export PATH="/tmp:$PATH"
 DEMO_DIR=$(mktemp -d)
 cd "$DEMO_DIR"
 
-echo "$ dbdense export --driver postgres --db 'postgres://dbdense:dbdense@localhost:5432/dbdense_test'"
-dbdense export --driver postgres --db "postgres://dbdense:dbdense@localhost:5432/dbdense_test"
+echo "$ dbdense export --driver postgres --db 'postgres://dbdense:dbdense@localhost:5432/dbdense_test' --schemas public"
+dbdense export --driver postgres --db "postgres://dbdense:dbdense@localhost:5432/dbdense_test" --schemas public
 
 echo ""
 echo "$ dbdense compile --mode lighthouse --in ctxexport.json --out lighthouse.txt"

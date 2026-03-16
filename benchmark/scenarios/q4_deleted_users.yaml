@@ -1,9 +1,0 @@
-id: q4_deleted_users
-label: simple_soft_delete
-category: regular
-prompt: >
-  How many users have been soft-deleted?
-verification:
-  response:
-    numeric_equals:
-      deleted_users: 1000

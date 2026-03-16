@@ -39,7 +39,8 @@ func (p *PostgresExtractor) SetSchemas(schemas []string) {
 	p.Schemas = schemas
 }
 
-// schemas returns the configured schema list, defaulting to ["public"].
+// schemas returns the configured schema list. Callers must ensure Schemas is
+// set before calling Extract; the CLI enforces this via --schemas.
 func (p *PostgresExtractor) schemas() []string {
 	if len(p.Schemas) == 0 {
 		return []string{"public"}
@@ -77,6 +78,7 @@ func (p *PostgresExtractor) Extract(ctx context.Context) (*schema.CtxExport, err
 		if err != nil {
 			return nil, fmt.Errorf("extract entities (%s): %w", s, err)
 		}
+
 		entities = append(entities, ents...)
 	}
 

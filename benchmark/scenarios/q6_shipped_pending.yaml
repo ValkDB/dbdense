@@ -1,9 +1,0 @@
-id: q6_shipped_pending
-label: simple_shipment_status
-category: regular
-prompt: >
-  How many orders have shipped but not yet been delivered?
-verification:
-  response:
-    numeric_equals:
-      shipped_not_delivered: 2000

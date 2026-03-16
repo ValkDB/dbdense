@@ -1,49 +1,71 @@
-# dbdense - Offline schema context for LLM agents
-Extract your database schema once. Serve it to AI agents via MCP without a live connection.
+# dbdense - Schema context that fits in a prompt
+
+Most LLM questions only need a few tables, but tools send the whole schema. dbdense is an offline schema extraction and compile pipeline: it extracts your database schema once, builds a compact schema map, and renders detailed schema text on demand. It can also serve the result over MCP.
 
 <img src="docs/media/demo.svg" alt="dbdense demo" width="820">
 
-dbdense is an offline pipeline for turning a live database into local schema artifacts:
+## The problem
 
-- `ctxexport.json`: a repo-committable schema snapshot
-- `dbdense.yaml`: optional sidecar descriptions and hints
-- `lighthouse.txt` plus on-demand DDL slices delivered over MCP
+A 500-table schema is ~93K tokens of DDL. Most questions touch 3-5 tables.
 
-After `export`, the runtime path is local-only. `compile`, `serve`, and Claude/MCP usage do not need database credentials or a live database connection. That makes the tool usable in offline and air-gapped environments, and it keeps production credentials out of the agent runtime.
+**Without schema context**, the agent guesses at column names, misinterprets statuses, and burns tokens querying `information_schema` to orient itself.
 
-## Why this shape
+**With dbdense**, a ~4K token schema map stays in context. The agent sees every exported entity and FK relationship at a glance, then requests detailed schema text only for the objects it needs.
 
-Large schema dumps are not usually hard because DDL is exotic. They are hard because most questions only need a few tables, and sending everything wastes prompt space. dbdense keeps a compact table map cheap enough to keep around, then sends table-level DDL only when the agent asks for it.
+In the current checked-in n=3 benchmark run (same model, same 5 questions, same seeded database):
 
-## Architecture
+| Metric | Without schema context | With dbdense | Delta |
+|--------|------------------------|--------------|-------|
+| Correct answers | 13/15 | 13/15 | equal |
+| Avg turns | 4.1 | 2.2 | -46% fewer round-trips |
+| Avg total tokens per question | 57,184 | 37,521 | -34% fewer tokens |
+| Avg latency | 34s | 31s | -8% faster |
 
-`Extract -> Compile -> Serve`
+Both arms achieved the same accuracy, but dbdense used 34% fewer total tokens per question and 46% fewer turns. The savings scale with query complexity: on multi-table joins, baseline spent up to 6 turns discovering schema while dbdense answered in 2. This run used precompiled schema DDL injected into the prompt, not the live MCP slice flow, and it still misses the report's latency and stress gates. See [Agentic benchmark](#agentic-benchmark) for methodology and caveats.
 
-1. `export` reads PostgreSQL or MongoDB metadata once and writes `ctxexport.json`.
-2. `compile` renders either a lightweight lighthouse map or full SQL DDL from that snapshot.
-3. `serve` exposes the snapshot over MCP:
-   - Resource: `dbdense://lighthouse`
-   - Tool: `slice`
-   - Tool: `reset`
+## Install
+
+Requires Go 1.25+.
+
+```bash
+go install github.com/valkdb/dbdense/cmd/dbdense@latest
+```
+
+This installs the `dbdense` binary. The `benchmark/` directory is a separate Go module used for end-to-end testing and is not included in the install.
+
+## Quick start
+
+```bash
+dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app" --schemas public
+dbdense compile --mode lighthouse --in ctxexport.json --out lighthouse.txt
+dbdense compile --in ctxexport.json --out schema.sql
+dbdense serve --in ctxexport.json
+```
+
+With the offline schema compiled, an LLM can plan complex multi-table joins using only the local artifact — no database credentials or network access:
+
+<img src="docs/media/demo-claude.svg" alt="Offline schema-aware query planning" width="820">
+
+If you use Claude Code, `dbdense init-claude` writes the `.mcp.json` entry for you. See `docs/claude-code-integration.md` for details.
 
 ## Two-tier context model
 
-- `lighthouse`
-  - Exposed as the `dbdense://lighthouse` MCP resource; some clients may also keep it in prompt context.
-  - Contains table names plus FK neighbors.
-  - Cheap enough to keep around for broad schema awareness.
-- `slice`
-  - Returned on demand through the MCP `slice` tool.
-  - Uses standard SQL DDL for only the requested tables.
+- **lighthouse** — a compact schema map kept in context for broad schema awareness.
+  - Exposed as the `dbdense://lighthouse` MCP resource.
+  - Contains exported entity names plus FK neighbors.
+  - ~4K tokens for 500 tables.
+- **slice** — compiled schema text returned on demand for only the entities the agent asks about.
+  - Returned through the MCP `slice` tool.
+  - SQL DDL for tables and materialized views, plus `-- VIEW:` comments for views.
   - Session dedup avoids re-sending the same tables on later turns.
 
 Example lighthouse:
 
 ```text
 # lighthouse.v0
-# Table map. T=table, J=joined tables. Use slice tool for column details.
+# Table map. T=table, J=joined tables, E=embedded docs. Use slice tool for column details.
 T:users|J:orders,sessions
-T:orders|J:payments,shipments,users
+T:orders|E:payload,shipping|J:payments,shipments,users
 T:audit_log
 ```
 
@@ -67,15 +89,63 @@ CREATE TABLE orders (
 ALTER TABLE orders ADD FOREIGN KEY (user_id) REFERENCES users (id);
 ```
 
+## What you get
+
+- **Fewer turns** — schema context eliminated discovery round-trips. In our benchmark, average turns dropped from 4.1 to 2.2 per question.
+- **Fewer tokens** — a 500-table schema compresses from ~93K tokens to a ~4K lighthouse map, with detailed schema text served only on demand.
+- **No credentials in the agent runtime** — export once, then compile and serve from the local snapshot. Works offline and air-gapped.
+- **Repo-committable artifacts** — the compiled lighthouse and schema files are plain text. Check them into version control alongside your code.
+
+## Architecture
+
+`Extract -> Compile -> Serve`
+
+1. `export` reads PostgreSQL or MongoDB metadata once and writes `ctxexport.json`.
+2. `compile` renders either a lightweight lighthouse map or SQL-first schema text from that snapshot.
+3. `serve` optionally exposes the snapshot over MCP:
+   - Resource: `dbdense://lighthouse`
+   - Tool: `slice`
+   - Tool: `reset`
+
+After `export`, the runtime path is local-only. `compile`, `serve`, and Claude/MCP usage do not need database credentials or a live database connection. That makes the tool usable in offline and air-gapped environments, and it keeps production credentials out of the agent runtime.
+
+## Supported backends
+
+- **PostgreSQL** — extracts tables, views, materialized views, columns (types, NOT NULL, defaults), primary keys, foreign keys, unique constraints, and indexes from `pg_catalog`. Does not extract triggers, RLS policies, custom types, or functions.
+- **MongoDB** — extracts JSON Schema validators when present, otherwise samples documents to infer fields and types. Extracts indexes (compound, unique). Inferred refs are conservative: only exact `*_id → collection_name` matches.
+
+New backends can be added by implementing the `Extractor` interface in `internal/extract`.
+
+## Sidecar enrichment
+
+`dbdense.yaml` lets you layer human-written descriptions and column value annotations onto the extracted snapshot without changing the source database. These are merged during `export` and flow into the rendered DDL as SQL comments.
+
+Example sidecar:
+
+```yaml
+entities:
+  payments:
+    fields:
+      status:
+        values: ["pending", "authorized", "paid", "failed", "refunded"]
+  orders:
+    fields:
+      status:
+        description: "Order lifecycle status."
+        values: ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+```
+
+Column values appear in the compiled DDL as inline comments (e.g., `-- Values: pending, authorized, paid, failed, refunded`), giving the LLM knowledge of valid filter values without querying the database.
+
 ## Performance
 
-Numbers below come from the compile test suite and Go benchmarks in `internal/compile`. Token counts are estimates based on `chars / 4`, which the tests note is roughly 15-25% optimistic for DDL.
+Numbers below come from the compile test suite and Go benchmarks in `internal/compile` and measure **compile-time artifact sizes**, not end-to-end model token usage. Token counts are heuristic estimates based on `chars / 4`, which the tests note is roughly 15-25% optimistic for DDL. For actual model token usage from the agentic benchmark, see [Agentic benchmark](#agentic-benchmark).
 
 | Fixture | Tables | Lighthouse chars | Full DDL chars | Est. LH tokens | Est. DDL tokens | Naive DDL chars | Example subset ratio |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Startup SaaS | 30 | 1131 | 11940 | 282 | 2985 | 17316 | 3 tables = 10.9% of full DDL (1304 / 11940 chars) |
-| Enterprise ERP | 200 | 10515 | 155988 | 2628 | 38997 | 189532 | 8 tables = 4.0% of full DDL (6261 / 155988 chars) |
-| Legacy Nightmare | 500 | 17324 | 372252 | 4331 | 93063 | 439324 | 15 tables = 2.3% of full DDL (8644 / 372252 chars) |
+| Startup SaaS | 30 | 1148 | 11940 | 287 | 2985 | 17316 | 3 tables = 10.9% of full DDL (1304 / 11940 chars) |
+| Enterprise ERP | 200 | 10532 | 155988 | 2633 | 38997 | 189532 | 8 tables = 4.0% of full DDL (6261 / 155988 chars) |
+| Legacy Nightmare | 500 | 17341 | 372252 | 4335 | 93063 | 439324 | 15 tables = 2.3% of full DDL (8644 / 372252 chars) |
 
 Local compiler microbenchmarks on the same machine:
 
@@ -102,76 +172,52 @@ Benchmark timings above were recorded with `go test -bench` on an 11th Gen Intel
 
 ## Agentic benchmark
 
-Preliminary result (single run, n=1).
+The current checked-in benchmark run is an end-to-end agentic benchmark (n=3) comparing two arms on the same seeded Postgres database (20K+ rows) with 5 questions, the same system prompt, and the same model (Claude Sonnet 4). The schema context covered 8 public-schema tables with sidecar-provided column value annotations:
 
-We ran an end-to-end agentic benchmark comparing two arms on the same seeded Postgres database (20K+ rows) with the same 7 questions, same system prompt, and the same model (Claude Sonnet). The injected benchmark context covered 8 public-schema tables; `auth.sessions` existed separately in the database:
-
-- **Baseline**: Postgres MCP tool only. The model must discover the schema on its own (the baseline agent typically queries `information_schema` or guesses).
+- **Baseline**: Postgres MCP tool only. The model must discover the schema on its own (typically queries `information_schema`).
 - **dbdense**: Same Postgres MCP tool, plus precompiled schema DDL injected into the prompt context via `-context-file-dbdense`.
 
 | Metric | Baseline | dbdense | Delta |
 |--------|----------|---------|-------|
-| Correct answers | 4/7 | 6/7 | +50% more correct |
-| Avg turns | 5.1 | 3.0 | -41% fewer round-trips |
-| Total prompt tokens | 648,984 | 513,927 | -21% fewer tokens |
-| Avg latency | 39,960 ms | 33,273 ms | -17% faster |
+| Correct answers | 13/15 | 13/15 | equal |
+| Avg turns | 4.1 | 2.2 | -46% fewer round-trips |
+| Avg total tokens per question | 57,184 | 37,521 | -34% fewer tokens |
+| Avg latency | 34s | 31s | -8% faster |
+
+Per-scenario breakdown (averaged over 3 runs):
+
+| Scenario | Baseline tokens | dbdense tokens | Baseline turns | dbdense turns |
+|----------|----------------:|---------------:|---------------:|--------------:|
+| q1 (simple filter) | 72,394 | 36,864 | 6.3 | 3.0 |
+| q2 (complex multi-join) | 88,098 | 32,130 | 6.3 | 2.0 |
+| q3 (revenue sum) | 30,686 | 35,594 | 2.0 | 2.0 |
+| q4 (shipment status) | 31,560 | 39,129 | 2.0 | 2.0 |
+| q5 (refund + cancel) | 63,183 | 43,885 | 3.7 | 2.0 |
 
 Key findings:
 
-- Schema context improves accuracy, not just token count. Without schema context, the baseline guessed at column semantics and counted wrong statuses (q1: 14,000 vs correct 9,000) and miscalculated revenue (q5). With schema context — column types, FK relationships, table descriptions — dbdense produced correct queries for both.
-- q3, the stress scenario requiring GROUP BY across providers and regions, was answered correctly in both arms in the recorded run.
-- The verification harness uses strict JSON key matching, which still undercounts accuracy on several other questions when the model returns the right number under a different key name.
+- Token and turn savings scale with query complexity. On multi-table joins (q1, q2, q5), dbdense used 46-64% fewer tokens because baseline spent extra turns querying `information_schema` to discover the schema. On simple queries (q3, q4), both arms performed similarly.
+- Both arms achieved 13/15 accuracy. Baseline missed q2 once and q4 once; dbdense missed q2 twice. One repeated failure mode was q2 returning 747 instead of 49.
+- The benchmark used precompiled schema DDL injected into the prompt, not the live MCP slice flow.
 
-Caveats: this is a single run (n=1) on a small schema. It is not a large-scale study. These results are from one benchmark run. Run the harness yourself to reproduce:
-
-```bash
-cd benchmark && go run ./cmd/benchrun -model claude-sonnet-4-20250514 -arms baseline,dbdense -mcp-config-baseline mcp_postgres.json -mcp-config-dbdense mcp_postgres.json -context-file-dbdense dbdense.schema.sql -claude-permission-mode bypassPermissions -runs 1
-```
-
-## Supported backends
-
-- PostgreSQL
-- MongoDB
-
-New backends can be added by implementing the `Extractor` interface in `internal/extract`.
-
-## Install
+Caveats: this is a small-scale benchmark on a synthetic schema. Results are specific to this setup, and this run still misses the latency and stress gates in the benchmark report. Run the harness yourself to reproduce:
 
 ```bash
-go install github.com/valkdb/dbdense/cmd/dbdense@latest
+cd benchmark && go run ./cmd/benchrun -model claude-sonnet-4-20250514 -arms baseline,dbdense -mcp-config-baseline mcp_postgres.json -mcp-config-dbdense mcp_postgres.json -context-file-dbdense dbdense.schema.sql -claude-permission-mode bypassPermissions -runs 3
 ```
-
-## Quick start
-
-```bash
-dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app"
-dbdense compile --mode lighthouse --in ctxexport.json --out lighthouse.txt
-dbdense compile --in ctxexport.json --out schema.sql
-dbdense serve --in ctxexport.json
-```
-
-If you use Claude Code, `dbdense init-claude` writes the `.mcp.json` entry for you:
-
-<img src="docs/media/demo-claude.svg" alt="Claude Code integration" width="820">
-
-After setup, Claude can review code, write queries, and plan migrations with full schema awareness — without database credentials or network access.
-
-## Sidecar enrichment
-
-`dbdense.yaml` lets you layer human-written descriptions onto the extracted snapshot without changing the source database. Those descriptions are merged during `export` and then flow into the rendered DDL as SQL comments.
 
 ## Honest limitations
 
 - The snapshot is static. Re-run `export` after schema changes.
 - The runtime path is intentionally offline. If you need live schema introspection at query time, use a live database MCP server instead.
-- `slice` selection still depends on the LLM asking for the right tables. dbdense reduces context size; it does not solve table selection for the model.
+- `slice` selection still depends on the LLM asking for the right tables or views. dbdense reduces context size; it does not solve object selection for the model.
 - The DDL renderer includes columns, PKs, FKs, NOT NULL, DEFAULTs, unique constraints, and indexes, but it is not a full `pg_dump --schema-only` replacement.
-- MongoDB extraction is sample-based. Field inference depends on sampled documents, and inferred refs are conservative: only exact `*_id -> collection_name` matches become edges.
+- MongoDB extraction is sample-based by default. When a collection has a JSON Schema validator (`$jsonSchema`), it is used as ground truth. Otherwise, field inference depends on sampled documents. Inferred refs are conservative: only exact `*_id -> collection_name` matches become edges. When a `*_id` field is >=90% objectId but has no matching collection, a high-confidence warning is emitted so you can resolve it via sidecar.
 - The performance numbers above come from synthetic fixtures and local benchmarks, not a published real-world production corpus.
 
 ## Use cases
 
-- **Offline schema context for LLM agents** — the primary use case. Give AI coding assistants full schema awareness without a live database connection.
+- **Schema context for LLM agents** — the primary use case. Give AI coding assistants full schema awareness without a live database connection.
 
 The `ctxexport.json` artifact is a machine-readable schema snapshot that other tools can consume:
 

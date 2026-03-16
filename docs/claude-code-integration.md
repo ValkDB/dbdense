@@ -23,16 +23,16 @@ dbdense currently exposes one resource and two tools:
 A common conversation shape, when the client reads the resource, is:
 
 1. Claude reads or is given `dbdense://lighthouse`
-2. Claude decides which tables matter
-3. Claude calls `slice` for those tables
-4. On later turns, Claude only gets new tables unless it calls `reset`
+2. Claude decides which objects matter
+3. Claude calls `slice` for those objects
+4. On later turns, Claude only gets new objects unless it calls `reset`
 
 ## Quick setup
 
 Export a snapshot first:
 
 ```bash
-dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app"
+dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app" --schemas public
 ```
 
 Then generate the Claude config:
@@ -68,12 +68,12 @@ dbdense init-claude --target claude-desktop --in ctxexport.json
 
 ```text
 # lighthouse.v0
-# Table map. T=table, J=joined tables. Use slice tool for column details.
+# Table map. T=table, J=joined tables, E=embedded docs. Use slice tool for column details.
 T:users|J:orders,sessions
 T:orders|J:payments,users
 ```
 
-`slice` returns standard SQL DDL for the requested tables. If a table name is wrong, the response appends:
+`slice` returns compiled schema text for the requested names. Tables and materialized views are rendered as `CREATE TABLE` DDL; views are rendered as `-- VIEW:` comments. If a table name is wrong, the response appends:
 
 ```text
 -- Warning: tables not found in schema: ...

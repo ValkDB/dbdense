@@ -1,8 +1,8 @@
 # Benchmark Fairness
 
-> **Note:** Benchmark results from the agentic harness are preliminary and not yet publishable. The compile-suite metrics in the README are from deterministic Go tests.
+This repo includes a benchmark harness for comparing agents with and without precompiled schema context. The current checked-in benchmark run is an n=3 run on a seeded 8-table Postgres database with 5 scenarios.
 
-This repo includes a benchmark harness, but any performance claims should be treated as preliminary until the results are rerun and published with raw artifacts.
+That run is useful directional evidence, but it still misses the latency and stress gates in the report.
 
 The goal of the harness is simple: compare agents that have to discover schema context on the fly against agents that receive precompiled dbdense context, while keeping the rest of the setup constant.
 
@@ -84,14 +84,14 @@ High-level flow:
 
 `benchreport` then computes summaries and gate results around completeness, run counts, accuracy, token overhead, latency, session continuity, and stress behavior.
 
-## Preliminary disclaimer
+## Scope disclaimer
 
-The harness is useful today, but the published evidence is still narrow:
+The evidence is intentionally narrow:
 
-- scenario sets are small
-- seeded datasets are synthetic
+- 5 scenarios on a single seeded database
+- one model (Claude Sonnet 4)
+- synthetic data
 - provider behavior changes over time
-- results from one model or one provider should not be generalized automatically
 
 Use the numbers as evidence about this setup, not as universal LLM behavior.
 

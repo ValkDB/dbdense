@@ -120,3 +120,80 @@ func TestInferSubfields_Empty(t *testing.T) {
 		t.Errorf("expected 0 subfields from nil docs, got %d", len(fields))
 	}
 }
+
+func TestParseJSONSchemaValidator(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "$jsonSchema", Value: bson.D{
+			{Key: "required", Value: bson.A{"name", "email"}},
+			{Key: "properties", Value: bson.D{
+				{Key: "name", Value: bson.D{
+					{Key: "bsonType", Value: "string"},
+					{Key: "description", Value: "User's full name"},
+				}},
+				{Key: "email", Value: bson.D{
+					{Key: "bsonType", Value: "string"},
+				}},
+				{Key: "age", Value: bson.D{
+					{Key: "bsonType", Value: "int"},
+				}},
+				{Key: "address", Value: bson.D{
+					{Key: "bsonType", Value: "object"},
+					{Key: "properties", Value: bson.D{
+						{Key: "street", Value: bson.D{{Key: "bsonType", Value: "string"}}},
+						{Key: "city", Value: bson.D{{Key: "bsonType", Value: "string"}}},
+					}},
+				}},
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fields := parseJSONSchemaValidator(bson.Raw(raw))
+	if len(fields) != 4 {
+		t.Fatalf("expected 4 fields, got %d: %+v", len(fields), fields)
+	}
+
+	fieldMap := make(map[string]struct {
+		typ     string
+		notNull bool
+		desc    string
+		subs    int
+	}, len(fields))
+	for _, f := range fields {
+		fieldMap[f.Name] = struct {
+			typ     string
+			notNull bool
+			desc    string
+			subs    int
+		}{f.Type, f.NotNull, f.Description, len(f.Subfields)}
+	}
+
+	if f := fieldMap["name"]; f.typ != "string" || !f.notNull || f.desc != "User's full name" {
+		t.Errorf("name: got type=%q notNull=%v desc=%q", f.typ, f.notNull, f.desc)
+	}
+	if f := fieldMap["email"]; f.typ != "string" || !f.notNull {
+		t.Errorf("email: got type=%q notNull=%v", f.typ, f.notNull)
+	}
+	if f := fieldMap["age"]; f.typ != "int" || f.notNull {
+		t.Errorf("age: got type=%q notNull=%v", f.typ, f.notNull)
+	}
+	if f := fieldMap["address"]; f.typ != "object" || f.subs != 2 {
+		t.Errorf("address: got type=%q subfields=%d", f.typ, f.subs)
+	}
+}
+
+func TestParseJSONSchemaValidator_NoSchema(t *testing.T) {
+	raw, err := bson.Marshal(bson.D{
+		{Key: "someOtherValidator", Value: "value"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fields := parseJSONSchemaValidator(bson.Raw(raw))
+	if len(fields) != 0 {
+		t.Errorf("expected 0 fields for non-jsonSchema validator, got %d", len(fields))
+	}
+}

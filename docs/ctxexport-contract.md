@@ -67,7 +67,8 @@ A field is a column in a relational table or a top-level key in a document.
   "is_pk": false,
   "not_null": true,
   "default": "''::character varying",
-  "description": "Login email."
+  "description": "Login email.",
+  "values": ["work", "personal"]
 }
 ```
 
@@ -79,15 +80,18 @@ A field is a column in a relational table or a top-level key in a document.
 | `not_null`    | bool    | No       | `true` if the column has a NOT NULL constraint.         |
 | `default`     | string  | No       | Default expression (e.g., `"now()"`, `"'active'::text"`). |
 | `description` | string  | No       | Human-readable description.                             |
+| `values`      | string[] | No      | Distinct low-cardinality values from sidecar enrichment. |
 | `subfields`   | Field[] | No       | Nested fields for embedded documents (MongoDB only). One level deep. |
 
 #### Subfields (MongoDB embedded documents)
 
-When the MongoDB extractor encounters an embedded document (BSON type `0x03`),
-it samples the sub-keys and infers their types — the same union-and-vote logic
-used for top-level fields. Subfields are stored as a nested `Field[]` on the
-parent field. Only one level of nesting is captured; deeper structures remain
-opaque (use the sidecar `description` to document them).
+When a collection has a JSON Schema validator (`$jsonSchema`), the extractor uses
+it as ground truth for field names, types, required constraints, and descriptions.
+Otherwise, the MongoDB extractor samples documents and encounters embedded documents
+(BSON type `0x03`), sampling sub-keys and inferring their types — the same
+union-and-vote logic used for top-level fields. Subfields are stored as a nested
+`Field[]` on the parent field. Only one level of nesting is captured; deeper
+structures remain opaque (use the sidecar `description` to document them).
 
 ```json
 {
@@ -301,7 +305,8 @@ type Extractor interface {
 ## Sidecar Enrichment
 
 The sidecar file (`dbdense.yaml`) lets users overlay human-written descriptions
-onto the exported contract without modifying the source database.
+and low-cardinality field values onto the exported contract without modifying
+the source database.
 
 ```yaml
 entities:
@@ -310,11 +315,14 @@ entities:
     fields:
       deleted_at:
         description: "Soft delete flag."
+      status:
+        values: ["active", "disabled", "pending"]
 ```
 
 `MergeSidecar()` (`internal/extract/sidecar.go`) applies overrides in place:
 
-- Only non-empty description values replace extracted values.
+- Only non-empty entity and field descriptions replace extracted descriptions.
+- Non-empty field `values` arrays replace extracted values.
 - Entity names in the sidecar that do not match any exported entity produce warnings.
 - Field names in the sidecar that do not match any field in the corresponding entity produce warnings.
 - Unknown fields in the YAML are rejected (`KnownFields(true)`).
@@ -412,9 +420,10 @@ exports (e.g., a database with tens of thousands of tables).
 The `Compiler` (`internal/compile/compiler.go`) reads a `CtxExport` and
 produces output in two formats:
 
-- **`CompileSubset(names)`** -- renders the requested tables as standard SQL DDL
-  (`CREATE TABLE` + `ALTER TABLE FOREIGN KEY`). Used by the MCP server's
-  `slice` tool to return DDL for specific tables on demand.
+- **`CompileSubset(names)`** -- renders the requested entities as SQL-first
+  schema text: `CREATE TABLE` + `ALTER TABLE FOREIGN KEY` for tables and
+  materialized views, and `-- VIEW:` comments for views. Used by the MCP
+  server's `slice` tool to return schema text for specific objects on demand.
 - **`CompileLighthouse()`** -- renders a lightweight table map as `lighthouse.v0`.
   Used by the MCP server for the `dbdense://lighthouse` resource.
 
@@ -425,8 +434,9 @@ gets compilation and serving for free.
 
 ## What the LLM Actually Receives
 
-The ctxexport.json above compiles into standard SQL DDL -- the final
-artifact that an LLM agent reads:
+The ctxexport.json above compiles into SQL-first schema text -- the final
+artifact that an LLM agent reads. Tables compile into standard SQL DDL, while
+views compile into `-- VIEW:` comments:
 
 ```sql
 CREATE TABLE users (

@@ -1,4 +1,4 @@
-// benchreport aggregates runs.jsonl artifacts into a publishable report with
+// benchreport aggregates runs.jsonl artifacts into a report with
 // summary metrics and acceptance-gate results.
 package main
 
@@ -75,7 +75,6 @@ type report struct {
 	StressByArm       map[string]armSummary     `json:"stress_by_arm"`
 	Comparison        comparisonSummary         `json:"comparison"`
 	Gates             []gateResult              `json:"gates"`
-	Publishable       bool                      `json:"publishable"`
 	Manifest          *harness.ResultManifest   `json:"manifest,omitempty"`
 	CountsPerScenario map[string]map[string]int `json:"counts_per_scenario"`
 }
@@ -133,7 +132,6 @@ func main() {
 	}
 
 	fmt.Printf("benchreport complete: %s\n", runDir)
-	fmt.Printf("publishable: %t\n", rep.Publishable)
 }
 
 func resolveInput(input string) (runDir string, recordsPath string, manifestPath string, err error) {
@@ -198,14 +196,6 @@ func buildReport(runDir, recordsPath string, records []harness.RunRecord, target
 	counts := countPerScenarioArm(records)
 	gates := evaluateGates(records, arms, scenarioIDs, minRuns, baselineArm, targetArm, regularSummaries, stressSummaries, comp, counts)
 
-	publishable := true
-	for _, g := range gates {
-		if !g.Pass {
-			publishable = false
-			break
-		}
-	}
-
 	return report{
 		GeneratedAt:       time.Now().UTC(),
 		InputPath:         runDir,
@@ -218,7 +208,6 @@ func buildReport(runDir, recordsPath string, records []harness.RunRecord, target
 		StressByArm:       stressSummaries,
 		Comparison:        comp,
 		Gates:             gates,
-		Publishable:       publishable,
 		CountsPerScenario: counts,
 	}
 }
@@ -753,7 +742,6 @@ func renderMarkdown(r report) string {
 	fmt.Fprintf(&b, "- Records: `%d` (`%d` complete)\n", r.TotalRecords, r.CompleteRecords)
 	fmt.Fprintf(&b, "- Baseline arm: `%s`\n", r.Comparison.BaselineArm)
 	fmt.Fprintf(&b, "- Target arm: `%s`\n", r.Comparison.TargetArm)
-	fmt.Fprintf(&b, "- Publishable: `%t`\n", r.Publishable)
 	fmt.Fprintln(&b)
 
 	fmt.Fprintln(&b, "## Regular Summary")

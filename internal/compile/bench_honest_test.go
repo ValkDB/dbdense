@@ -1112,7 +1112,7 @@ func TestAdversarial_LongTableNames(t *testing.T) {
 		// Pad name to exactly nameLength chars.
 		base := fmt.Sprintf("very_long_table_name_for_adversarial_testing_scenario_%d", i)
 		if len(base) < nameLength {
-			base = base + strings.Repeat("x", nameLength-len(base))
+			base += strings.Repeat("x", nameLength-len(base))
 		} else if len(base) > nameLength {
 			base = base[:nameLength]
 		}

@@ -2,7 +2,8 @@ id: q1_simple
 label: simple_single_table
 category: regular
 prompt: >
-  How many paid orders do we have?
+  How many orders have at least one payment with status 'paid'?
+  Return JSON with key paid_orders.
 verification:
   response:
     numeric_equals:

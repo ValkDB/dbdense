@@ -30,7 +30,7 @@ CREATE INDEX idx_order_items_order_id ON order_items (order_id);
 CREATE TABLE orders ( -- Customer orders.
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  "status" text NOT NULL DEFAULT 'pending'::text, -- Order lifecycle status.
+  "status" text NOT NULL DEFAULT 'pending'::text, -- Order lifecycle status.. Values: pending, confirmed, shipped, delivered, cancelled
   total numeric(10,2) NOT NULL DEFAULT 0,
   payload jsonb NOT NULL DEFAULT '{}'::jsonb -- JSONB. Structure: {status: string (pending|confirmed|shipped|delivered|cancelled), items: [{sku: string, qty: int, price: numeric}], shipping: {carrier: string, tracking_id: string, shipped_at: timestamptz}}. Query with payload->>'status', payload->'items', payload->'shipping'->>'carrier'.
 );
@@ -42,7 +42,7 @@ CREATE INDEX idx_orders_user_id ON orders (user_id);
 CREATE TABLE payments ( -- Payment attempts and settlement state.
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL,
-  "status" text NOT NULL,
+  "status" text NOT NULL, -- Values: pending, authorized, paid, failed, refunded
   provider text NOT NULL,
   amount numeric(10,2) NOT NULL,
   paid_at timestamp with time zone,
@@ -64,7 +64,7 @@ CREATE TABLE shipments ( -- Shipment and delivery tracking records.
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL,
   carrier text NOT NULL,
-  "status" text NOT NULL,
+  "status" text NOT NULL, -- Values: label_created, in_transit, delivered, delayed, lost
   region text NOT NULL,
   shipped_at timestamp with time zone,
   delivered_at timestamp with time zone,

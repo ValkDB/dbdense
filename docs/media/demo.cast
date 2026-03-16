@@ -130,7 +130,7 @@
 [8.24, "o", "t"]
 [8.28, "o", "\r\n"]
 [8.4, "o", "\u001b[36m# lighthouse.v0\u001b[0m\r\n"]
-[8.43, "o", "\u001b[36m# Table map. T=table, J=joined tables.\u001b[0m\r\n"]
+[8.43, "o", "\u001b[36m# Table map. T=table, J=joined tables, E=embedded docs.\u001b[0m\r\n"]
 [8.46, "o", "T:audit_events\r\n"]
 [8.49, "o", "T:internal_metrics\r\n"]
 [8.52, "o", "T:order_items|J:orders,products\r\n"]

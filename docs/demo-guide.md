@@ -2,60 +2,12 @@
 
 This guide is for a quick end-to-end run that matches the current CLI and MCP output.
 
-## Synthetic demo
-
-Build and generate a local export:
-
-```bash
-go build -o dbdense ./cmd/dbdense
-./dbdense genexport --tables 25 --out demo_export.json
-```
-
-Current stderr format:
-
-```text
-generated <entities> entities, <edges> edges -> demo_export.json
-```
-
-Compile lighthouse and full DDL:
-
-```bash
-./dbdense compile --mode lighthouse --in demo_export.json --out demo_lighthouse.txt
-./dbdense compile --in demo_export.json --out demo_schema.sql
-```
-
-Current stderr formats:
-
-```text
-lighthouse: <tables> tables, ~<tokens> tokens -> demo_lighthouse.txt
-compiled <entities> entities, <edges> edges -> demo_schema.sql
-```
-
-Check the lighthouse file:
-
-```text
-# lighthouse.v0
-# Table map. T=table, J=joined tables. Use slice tool for column details.
-T:users|J:orders
-T:orders|J:payments,users
-```
-
-Check the DDL file:
-
-```sql
--- dbdense schema context
-CREATE TABLE users (
-  id uuid PRIMARY KEY,
-  email text
-);
-```
-
-## Live export demo
+## Export demo
 
 PostgreSQL:
 
 ```bash
-dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app"
+dbdense export --driver postgres --db "postgres://user:pass@localhost:5432/app" --schemas public
 ```
 
 MongoDB:

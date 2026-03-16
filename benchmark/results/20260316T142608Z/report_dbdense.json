@@ -1,0 +1,212 @@
+{
+  "generated_at": "2026-03-16T14:52:34.776326388Z",
+  "input_path": "results/20260316T142608Z",
+  "records_path": "results/20260316T142608Z/runs.jsonl",
+  "total_records": 30,
+  "complete_records": 30,
+  "arms": [
+    "baseline",
+    "dbdense"
+  ],
+  "scenario_ids": [
+    "q1_simple",
+    "q2_complex",
+    "q3_revenue",
+    "q4_shipped_pending",
+    "q5_complex_refund"
+  ],
+  "regular_by_arm": {
+    "baseline": {
+      "arm": "baseline",
+      "category": "regular",
+      "runs": 15,
+      "complete_runs": 15,
+      "incomplete_runs": 0,
+      "pass_rate": 0.8666666666666667,
+      "average_score": 0.8666666666666667,
+      "completion_token": {
+        "count": 15,
+        "mean": 975.3333333333334,
+        "median": 922,
+        "p90": 1776,
+        "stddev": 773.8954032930388,
+        "min": 241,
+        "max": 2985
+      },
+      "estimated_input_token": {
+        "count": 15,
+        "mean": 47.8,
+        "median": 36,
+        "p90": 86,
+        "stddev": 24.410770456618412,
+        "min": 24,
+        "max": 86
+      },
+      "total_reported_token": {
+        "count": 15,
+        "mean": 57184.46666666667,
+        "median": 48944,
+        "p90": 108933,
+        "stddev": 29631.360177706196,
+        "min": 29437,
+        "max": 114541
+      },
+      "latency_ms": {
+        "count": 15,
+        "mean": 34222.13333333333,
+        "median": 29689,
+        "p90": 74333,
+        "stddev": 21109.740760628785,
+        "min": 15222,
+        "max": 78865
+      }
+    },
+    "dbdense": {
+      "arm": "dbdense",
+      "category": "regular",
+      "runs": 15,
+      "complete_runs": 15,
+      "incomplete_runs": 0,
+      "pass_rate": 0.8666666666666667,
+      "average_score": 0.8666666666666667,
+      "completion_token": {
+        "count": 15,
+        "mean": 1015.9333333333333,
+        "median": 789,
+        "p90": 2287,
+        "stddev": 779.651155203097,
+        "min": 311,
+        "max": 2799
+      },
+      "estimated_input_token": {
+        "count": 15,
+        "mean": 1141.2,
+        "median": 1130,
+        "p90": 1179,
+        "stddev": 24.145984581883823,
+        "min": 1117,
+        "max": 1179
+      },
+      "total_reported_token": {
+        "count": 15,
+        "mean": 37520.6,
+        "median": 36830,
+        "p90": 43869,
+        "stddev": 4067.8071628686766,
+        "min": 31502,
+        "max": 44052
+      },
+      "latency_ms": {
+        "count": 15,
+        "mean": 31668.8,
+        "median": 27116,
+        "p90": 51916,
+        "stddev": 21202.54166435174,
+        "min": 16873,
+        "max": 100830
+      }
+    }
+  },
+  "stress_by_arm": {},
+  "comparison": {
+    "baseline_arm": "baseline",
+    "target_arm": "dbdense",
+    "completion_token_reduction_pct": 14.425162689804772,
+    "latency_reduction_pct": 8.666509481626191,
+    "pass_rate_delta": 0,
+    "completion_token_p_value": 0.7400217511938185,
+    "latency_p_value": 0.7715511878155722,
+    "baseline_median_completion_tokens": 922,
+    "target_median_completion_tokens": 789,
+    "baseline_median_est_input_tokens": 36,
+    "target_median_est_input_tokens": 1130,
+    "baseline_median_ms": 29689,
+    "target_median_ms": 27116
+  },
+  "gates": [
+    {
+      "id": 1,
+      "name": "No missing token/time/accuracy fields",
+      "pass": true,
+      "details": "missing=0"
+    },
+    {
+      "id": 2,
+      "name": "\u003e= 3 complete runs per arm per scenario",
+      "pass": true,
+      "details": "underfilled_cells=0"
+    },
+    {
+      "id": 3,
+      "name": "Target accuracy is not lower than baseline",
+      "pass": true,
+      "details": "target_pass_rate=0.8667 baseline_pass_rate=0.8667"
+    },
+    {
+      "id": 4,
+      "name": "Completion token overhead \u003c= 25% vs baseline",
+      "pass": true,
+      "details": "completion_overhead_pct=-14.43 baseline_median=922 target_median=789"
+    },
+    {
+      "id": 5,
+      "name": "Latency reduction \u003e= 15% (median)",
+      "pass": false,
+      "details": "latency_reduction_pct=8.67"
+    },
+    {
+      "id": 6,
+      "name": "Session continuity preserved per arm iteration",
+      "pass": true,
+      "details": "bad_groups=0"
+    },
+    {
+      "id": 7,
+      "name": "Stress gate: target \u003e= 90% pass rate and baseline fails",
+      "pass": false,
+      "details": "target_pass_rate=0.0000 baseline_pass_rate=0.0000"
+    }
+  ],
+  "manifest": {
+    "run_stamp": "20260316T142608Z",
+    "created_at": "2026-03-16T14:42:36.716524453Z",
+    "provider_id": "claude",
+    "model_id": "claude-sonnet-4-20250514",
+    "arms": [
+      "baseline",
+      "dbdense"
+    ],
+    "scenario_ids": [
+      "q1_simple",
+      "q2_complex",
+      "q3_revenue",
+      "q4_shipped_pending",
+      "q5_complex_refund"
+    ],
+    "total_runs": 30,
+    "pricing": {
+      "provider_id": "claude",
+      "model_id": "claude-sonnet-4-20250514",
+      "input_per_1k_usd": 0,
+      "output_per_1k_usd": 0,
+      "captured_at": "2026-03-16T14:42:36.716530046Z",
+      "source": "manual_flags"
+    }
+  },
+  "counts_per_scenario": {
+    "baseline": {
+      "q1_simple": 3,
+      "q2_complex": 3,
+      "q3_revenue": 3,
+      "q4_shipped_pending": 3,
+      "q5_complex_refund": 3
+    },
+    "dbdense": {
+      "q1_simple": 3,
+      "q2_complex": 3,
+      "q3_revenue": 3,
+      "q4_shipped_pending": 3,
+      "q5_complex_refund": 3
+    }
+  }
+}

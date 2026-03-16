@@ -16,6 +16,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/valkdb/dbdense/internal/extract"
+	"github.com/valkdb/dbdense/internal/testutil"
 	"github.com/valkdb/dbdense/pkg/schema"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -48,12 +49,14 @@ func requirePostgresSeeded(t *testing.T) {
 	}
 	defer db.Close()
 
+	// Retry ping — Docker healthcheck (pg_isready) can pass before the
+	// init SQL script finishes, causing "unexpected EOF" on early connects.
+	if err := testutil.PingWithRetry(db, 10); err != nil {
+		t.Fatalf("postgres ping failed after retries: %v\nHint: start seeded DB: docker compose -f docker-compose.test.yml up -d", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("postgres ping failed: %v\nHint: start seeded DB: docker compose -f docker-compose.test.yml up -d", err)
-	}
 
 	for _, table := range []string{"public.users", "auth.sessions"} {
 		var exists bool

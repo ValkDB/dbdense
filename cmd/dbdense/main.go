@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/valkdb/dbdense/internal/compile"
 	"github.com/valkdb/dbdense/internal/extract"
-	"github.com/valkdb/dbdense/internal/gen"
 	"github.com/valkdb/dbdense/internal/server"
 	"github.com/valkdb/dbdense/pkg/schema"
 )
@@ -35,7 +34,6 @@ func main() {
 		newCompileCmd(),
 
 		newServeCmd(),
-		newGenExportCmd(),
 		newInitClaudeCmd(),
 	)
 
@@ -141,6 +139,11 @@ func buildExtractor(driver, dsn, schemas string, sampleSize int) (extract.Extrac
 		}
 	}
 
+	// Postgres requires --schemas to be explicit.
+	if _, ok := ext.(*extract.PostgresExtractor); ok && len(schemaList) == 0 {
+		return nil, fmt.Errorf("--schemas is required for Postgres (e.g. --schemas public)")
+	}
+
 	// MongoDB-specific: default database and sample size.
 	if m, ok := ext.(*extract.MongoExtractor); ok {
 		m.SampleSize = sampleSize
@@ -186,7 +189,7 @@ func newCompileCmd() *cobra.Command {
 			export, err := schema.LoadExport(in)
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("%w; run 'dbdense export' first to create one, or 'dbdense genexport' for a demo", err)
+					return fmt.Errorf("%w; run 'dbdense export' first to create one", err)
 				}
 				return err
 			}
@@ -250,63 +253,13 @@ func newServeCmd() *cobra.Command {
 			fmt.Fprintln(os.Stderr, "starting MCP stdio server")
 			err := server.Serve(cmd.Context(), in, version)
 			if err != nil && errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("%w; run 'dbdense export' first to create one, or 'dbdense genexport' for a demo", err)
+				return fmt.Errorf("%w; run 'dbdense export' first to create one", err)
 			}
 			return err
 		},
 	}
 
 	cmd.Flags().StringVar(&in, "in", "ctxexport.json", "path to the canonical ctxexport.json")
-
-	return cmd
-}
-
-// newGenExportCmd builds the "genexport" subcommand that generates synthetic
-// ctxexport.json files for stress testing.
-func newGenExportCmd() *cobra.Command {
-	var (
-		tables int
-		out    string
-		seed   int64
-	)
-
-	cmd := &cobra.Command{
-		Use:   "genexport",
-		Short: "Generate a synthetic ctxexport.json for stress testing",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg := gen.Config{
-				TotalTables:  tables,
-				SignalTables: gen.DefaultSignalTables(),
-				Seed:         seed,
-			}
-
-			export := gen.Generate(cfg)
-
-			f, err := os.Create(out)
-			if err != nil {
-				return fmt.Errorf("create output: %w", err)
-			}
-
-			enc := json.NewEncoder(f)
-			enc.SetIndent("", "  ")
-			if err := enc.Encode(export); err != nil {
-				_ = f.Close()
-				return fmt.Errorf("write json: %w", err)
-			}
-
-			if err := f.Close(); err != nil {
-				return fmt.Errorf("close output: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "generated %d entities, %d edges -> %s\n",
-				len(export.Entities), len(export.Edges), out)
-			return nil
-		},
-	}
-
-	cmd.Flags().IntVar(&tables, "tables", 100, "total number of tables to generate")
-	cmd.Flags().StringVar(&out, "out", "ctxexport.json", "output file path")
-	cmd.Flags().Int64Var(&seed, "seed", 0, "random seed (0 = use table count)")
 
 	return cmd
 }

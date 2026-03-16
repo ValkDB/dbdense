@@ -99,9 +99,10 @@ func TestMongoExtractor_Indexes(t *testing.T) {
 func TestMongoExtractor_InferredEdges(t *testing.T) {
 	export := mongoExport(t)
 
-	// Plural collection guessing was removed. The seeded collections are
-	// pluralized ("users", "orders", "products"), so exact *_id base names
-	// do not match and no inferred edges should be emitted.
+	// Seeded collections are pluralized ("users", "orders", "products"),
+	// and exact *_id base names ("user", "order", "product") don't match.
+	// No edges should be emitted — but high-confidence objectId warnings
+	// should be surfaced for operator review.
 	if len(export.Edges) != 0 {
 		t.Fatalf("expected 0 inferred edges without pluralization, got %d: %+v", len(export.Edges), export.Edges)
 	}
@@ -122,18 +123,20 @@ func TestMongoExtractor_WarningsForSkippedRefs(t *testing.T) {
 	}
 
 	if len(ext.Warnings()) == 0 {
-		t.Fatal("expected warnings for skipped *_id inferred refs")
+		t.Fatal("expected warnings for unresolved *_id inferred refs")
 	}
 
+	// orders.user_id should produce a high-confidence objectId warning
+	// since "user" doesn't match any collection.
 	foundOrderUser := false
 	for _, w := range ext.Warnings() {
-		if strings.Contains(w, `orders.user_id`) && strings.Contains(w, `"user"`) {
+		if strings.Contains(w, `orders.user_id`) {
 			foundOrderUser = true
 			break
 		}
 	}
 	if !foundOrderUser {
-		t.Fatalf("expected warning mentioning orders.user_id -> \"user\", got %v", ext.Warnings())
+		t.Fatalf("expected warning mentioning orders.user_id, got %v", ext.Warnings())
 	}
 }
 

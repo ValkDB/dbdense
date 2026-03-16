@@ -34,7 +34,8 @@ type SidecarEntity struct {
 
 // SidecarField holds overrides for a single field.
 type SidecarField struct {
-	Description string `yaml:"description"`
+	Description string   `yaml:"description"`
+	Values      []string `yaml:"values"`
 }
 
 // LoadSidecar reads and parses a dbdense.yaml file. Returns a nil Sidecar
@@ -92,6 +93,9 @@ func MergeSidecar(export *schema.CtxExport, sc *Sidecar) []string {
 			}
 			if fo.Description != "" {
 				fld.Description = fo.Description
+			}
+			if len(fo.Values) > 0 {
+				fld.Values = fo.Values
 			}
 		}
 

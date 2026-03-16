@@ -111,13 +111,14 @@ type Entity struct {
 
 // Field represents a column within an entity.
 type Field struct {
-	Name        string  `json:"name"`
-	Type        string  `json:"type,omitempty"`
-	IsPK        bool    `json:"is_pk,omitempty"`
-	NotNull     bool    `json:"not_null,omitempty"`  // true if column has a NOT NULL constraint
-	Default     string  `json:"default,omitempty"`   // default expression (e.g., "now()", "'active'::text")
-	Description string  `json:"description,omitempty"`
-	Subfields   []Field `json:"subfields,omitempty"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type,omitempty"`
+	IsPK        bool     `json:"is_pk,omitempty"`
+	NotNull     bool     `json:"not_null,omitempty"` // true if column has a NOT NULL constraint
+	Default     string   `json:"default,omitempty"`  // default expression (e.g., "now()", "'active'::text")
+	Description string   `json:"description,omitempty"`
+	Values      []string `json:"values,omitempty"` // distinct values for low-cardinality columns
+	Subfields   []Field  `json:"subfields,omitempty"`
 }
 
 // AccessPath represents an index or similar access structure on an entity.

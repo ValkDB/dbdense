@@ -132,6 +132,61 @@ func TestLighthouse_TokenEfficiency(t *testing.T) {
 	}
 }
 
+func TestCompileLighthouse_EmbeddedDocs(t *testing.T) {
+	export := &schema.CtxExport{
+		Version: "ctxexport.v0",
+		Entities: []schema.Entity{
+			{
+				Name: "orders",
+				Type: "collection",
+				Fields: []schema.Field{
+					{Name: "_id", Type: "objectId", IsPK: true},
+					{Name: "user_id", Type: "objectId"},
+					{Name: "payload", Type: "object", Subfields: []schema.Field{
+						{Name: "channel", Type: "string"},
+						{Name: "status", Type: "string"},
+					}},
+					{Name: "shipping", Type: "object", Subfields: []schema.Field{
+						{Name: "address", Type: "string"},
+					}},
+				},
+			},
+			{
+				Name: "users",
+				Type: "collection",
+				Fields: []schema.Field{
+					{Name: "_id", Type: "objectId", IsPK: true},
+					{Name: "name", Type: "string"},
+				},
+			},
+		},
+		Edges: []schema.Edge{
+			{FromEntity: "orders", FromField: "user_id", ToEntity: "users", ToField: "_id"},
+		},
+	}
+
+	c := &Compiler{Export: export}
+	result, err := c.CompileLighthouse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// orders has embedded docs (payload, shipping) and joins.
+	if !strings.Contains(result.DSL, "T:orders|E:payload,shipping|J:users") {
+		t.Errorf("expected orders with embedded docs and joins, got:\n%s", result.DSL)
+	}
+
+	// users has no embedded docs.
+	if strings.Contains(result.DSL, "T:users|E:") {
+		t.Errorf("users should not have embedded doc section, got:\n%s", result.DSL)
+	}
+
+	// Legend should mention E=embedded docs.
+	if !strings.Contains(result.DSL, "E=embedded docs") {
+		t.Errorf("legend should mention E=embedded docs, got:\n%s", result.DSL)
+	}
+}
+
 func TestNeighbors(t *testing.T) {
 	edges := []schema.Edge{
 		{FromEntity: "orders", FromField: "user_id", ToEntity: "users", ToField: "id"},
